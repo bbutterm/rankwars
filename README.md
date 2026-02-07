@@ -1,11 +1,51 @@
-<div align="center">
+# ⚔️ RankWars (MVP)
 
-<img width="1200" height="475" alt="GHBanner" src="https://github.com/user-attachments/assets/0aa67016-6eaf-458a-adb2-6e31a0763ed6" />
+A visually stunning voting platform where users create polls, rank them on a global leaderboard, and vote within them. 
 
-  <h1>Built with AI Studio</h2>
+**Stack:** React 19, Tailwind CSS, Lucide Icons, Google Gemini AI.
 
-  <p>The fastest path from prompt to production with Gemini.</p>
+## 🌟 Features
 
-  <a href="https://aistudio.google.com/apps">Start building</a>
+*   **Create Polls:** AI-assisted generation of options and tags.
+*   **Vote & Rank:** Interactive voting UI with confetti effects.
+*   **Moderation:** Admin dashboard to Approve/Decline user-submitted polls.
+*   **Search & Filter:** Find polls by tags or text.
+*   **Responsive:** Mobile-first design.
 
-</div>
+## 🛠 Project Structure
+
+See [PROJECT_STRUCTURE.md](./PROJECT_STRUCTURE.md) for a detailed file tree.
+
+## 🚀 How to Run Locally
+
+1.  **Clone the repo**
+2.  **Serve the files:**
+    Since this project uses ES Modules via CDN, you strictly need a local server (opening `index.html` directly won't work due to CORS policies on modules).
+    
+    If you have Python:
+    ```bash
+    python3 -m http.server
+    ```
+    Or using Node `serve`:
+    ```bash
+    npx serve .
+    ```
+3.  **Open in Browser:** Go to `http://localhost:8000` (or whatever port your server uses).
+
+## ☁️ Deploy to Vercel
+
+This project is ready for static deployment.
+
+1.  Push this code to **GitHub**.
+2.  Go to **Vercel** -> **Add New Project**.
+3.  Select your repository.
+4.  **Settings:**
+    *   **Framework Preset:** Select `Other` (because we are using native ES modules without a bundler build step).
+    *   **Build Command:** Leave empty.
+    *   **Output Directory:** Leave empty (or use `.`/`root`).
+5.  **Environment Variables:**
+    *   Add `API_KEY` : Your Google Gemini API Key. (Note: Since this is a client-side app, you will need to manually paste the key into `services/aiService.ts` for the MVP, or set up a build replacement. For Vercel static, it's best to hardcode it for a demo or move to a backend proxy).
+
+## 🔮 Future Roadmap
+
+See [SERVER_PLAN.md](./SERVER_PLAN.md) for our migration strategy to Supabase.

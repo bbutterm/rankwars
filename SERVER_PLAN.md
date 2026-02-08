@@ -1,84 +1,102 @@
-# 🚀 RankWars - Backend Strategy (Supabase)
+# 🚀 RankWars - Supabase Migration SQL
 
-To move from MVP to Production, we will migrate from `localStorage` to **Supabase** (PostgreSQL + Auth + Edge Functions).
+Copy and paste the following into your **Supabase SQL Editor** to set up the database.
 
-## 1. Database Schema (PostgreSQL)
+## 1. Create Schema
 
-We need relational data to handle concurrency and security.
+```sql
+-- Status enum
+CREATE TYPE poll_status AS ENUM ('pending', 'approved', 'rejected');
 
-### Tables
+-- Main Polls table
+CREATE TABLE polls (
+  id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+  title TEXT NOT NULL,
+  description TEXT,
+  tags TEXT[] DEFAULT '{}',
+  status poll_status DEFAULT 'pending',
+  upvotes INTEGER DEFAULT 0,
+  created_at TIMESTAMPTZ DEFAULT now()
+);
 
-**`profiles`** (Users)
-- `id` (uuid, PK, references auth.users)
-- `username` (text, unique)
-- `avatar_url` (text)
-- `is_admin` (boolean, default false)
+-- Options table
+CREATE TABLE poll_options (
+  id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+  poll_id UUID REFERENCES polls(id) ON DELETE CASCADE,
+  text TEXT NOT NULL,
+  votes INTEGER DEFAULT 0
+);
+```
 
-**`polls`**
-- `id` (uuid, PK)
-- `created_by` (uuid, FK to profiles)
-- `title` (text)
-- `description` (text)
-- `tags` (text array)
-- `status` (enum: 'pending', 'approved', 'rejected')
-- `upvotes_count` (int, default 0)
-- `created_at` (timestamp)
+## 2. Remote Functions (for atomic increments)
 
-**`poll_options`**
-- `id` (uuid, PK)
-- `poll_id` (uuid, FK to polls)
-- `text` (text)
-- `vote_count` (int, default 0)
+These allow users to vote without downloading and overwriting the whole poll object.
 
-**`poll_votes`** (Tracks who voted for what option to prevent duplicates)
-- `id` (uuid, PK)
-- `user_id` (uuid, FK to profiles)
-- `poll_id` (uuid, FK to polls)
-- `option_id` (uuid, FK to poll_options)
-- *Constraint:* Unique(user_id, poll_id)
+```sql
+-- Function to increment poll upvotes
+CREATE OR REPLACE FUNCTION increment_poll_upvotes(poll_id UUID)
+RETURNS VOID AS $$
+BEGIN
+  UPDATE polls
+  SET upvotes = upvotes + 1
+  WHERE id = poll_id;
+END;
+$$ LANGUAGE plpgsql SECURITY DEFINER;
 
-**`poll_rankings`** (Tracks who upvoted the poll itself)
-- `id` (uuid, PK)
-- `user_id` (uuid)
-- `poll_id` (uuid)
-- *Constraint:* Unique(user_id, poll_id)
+-- Function to increment option votes
+CREATE OR REPLACE FUNCTION increment_option_votes(option_id UUID)
+RETURNS VOID AS $$
+BEGIN
+  UPDATE poll_options
+  SET votes = votes + 1
+  WHERE id = option_id;
+END;
+$$ LANGUAGE plpgsql SECURITY DEFINER;
+```
+
+## 3. Row Level Security (RLS)
+
+By default, everything is private. Run these to allow public interaction.
+
+```sql
+-- Enable RLS
+ALTER TABLE polls ENABLE ROW LEVEL SECURITY;
+ALTER TABLE poll_options ENABLE ROW LEVEL SECURITY;
+
+-- 1. Public can read approved polls
+CREATE POLICY "Public Read Approved" ON polls
+  FOR SELECT USING (status = 'approved');
+
+-- 2. Public can read options (of any poll they can see)
+CREATE POLICY "Public Read Options" ON poll_options
+  FOR SELECT USING (TRUE);
+
+-- 3. Public can insert new polls (default pending)
+CREATE POLICY "Public Create Polls" ON polls
+  FOR INSERT WITH CHECK (TRUE);
+
+-- 4. Public can insert options for their polls
+CREATE POLICY "Public Create Options" ON poll_options
+  FOR INSERT WITH CHECK (TRUE);
+
+-- 5. ADMINS can do everything
+-- Note: Replace 'your-admin-email@example.com' with your actual email if using simple check,
+-- or just allow all authenticated users for this MVP.
+CREATE POLICY "Admins full access" ON polls
+  FOR ALL TO authenticated USING (TRUE);
+
+CREATE POLICY "Admins full options access" ON poll_options
+  FOR ALL TO authenticated USING (TRUE);
+```
 
 ---
 
-## 2. Security (Row Level Security - RLS)
+## 🔑 Environment Variables
 
-We will use Postgres RLS policies to enforce logic without writing backend code.
+In your Vercel or local environment, set:
 
-1.  **Public Read:** Everyone can see `approved` polls.
-2.  **Admin Read:** Only `is_admin = true` can see `pending` polls.
-3.  **Creation:** Authenticated users can INSERT into `polls` (status default `pending`).
-4.  **Voting:** 
-    - Users can INSERT into `poll_votes` only if they haven't voted in that poll yet.
-    - Users can INSERT into `poll_rankings`.
-5.  **Moderation:** Only `is_admin` can UPDATE `polls.status`.
-
----
-
-## 3. Server-Side Logic (Edge Functions)
-
-We cannot keep the Gemini API Key in the frontend code.
-
-**Function: `generate-poll-options`**
-- **Trigger:** Called via REST API from client.
-- **Input:** `{ topic: string }`
-- **Logic:** 
-    1. Check if user is authenticated (optional, for rate limiting).
-    2. Call Google Gemini API (Key stored in Supabase Vault/Env).
-    3. Return JSON.
-- **Benefit:** API Key never touches the user's browser.
-
----
-
-## 4. Migration Steps
-
-1.  **Setup Supabase Project:** Create tables via SQL Editor.
-2.  **Install Client:** `npm install @supabase/supabase-js`.
-3.  **Refactor `storage.ts`:**
-    - Replace `localStorage.getItem` with `supabase.from('polls').select('*')`.
-    - Replace `savePoll` with `supabase.from('polls').insert(...)`.
-4.  **Add Auth:** Add Google/GitHub Login button on the frontend.
+```env
+SUPABASE_URL=your_project_url
+SUPABASE_ANON_KEY=your_anon_key
+API_KEY=your_gemini_api_key
+```

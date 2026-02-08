@@ -1,5 +1,6 @@
 export interface PollOption {
   id: string;
+  poll_id: string;
   text: string;
   votes: number;
 }
@@ -10,11 +11,12 @@ export interface Poll {
   id: string;
   title: string;
   description: string;
-  upvotes: number; // The "ranking" of the poll itself
+  upvotes: number;
   options: PollOption[];
-  createdAt: number;
+  created_at: string; // Supabase uses ISO string
+  createdAt?: number; // legacy fallback
   tags?: string[];
-  themeColor?: string; // Hex code or tailwind class hint
+  themeColor?: string;
   status: PollStatus;
 }
 

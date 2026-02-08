@@ -5,6 +5,8 @@ import { PollView } from './pages/PollView';
 import { Admin } from './pages/Admin';
 import { CreatePoll } from './pages/CreatePoll';
 import { Toaster } from './components/Toast';
+import { isSupabaseConfigured } from './services/supabase';
+import { AlertCircle, Database } from 'lucide-react';
 
 const App: React.FC = () => {
   const [currentView, setView] = useState<ViewState>('HOME');
@@ -54,7 +56,13 @@ const App: React.FC = () => {
             RankWars
           </div>
           
-          <div className="flex gap-4">
+          <div className="flex gap-4 items-center">
+             {!isSupabaseConfigured && (
+                <div className="flex items-center gap-1 text-xs text-amber-500 bg-amber-500/10 px-2 py-1 rounded border border-amber-500/20 mr-2" title="Supabase keys missing">
+                   <AlertCircle size={14} />
+                   <span className="hidden sm:inline">No DB</span>
+                </div>
+             )}
              {currentView !== 'CREATE_POLL' && (
                 <button 
                   onClick={() => setView('CREATE_POLL')}
@@ -74,6 +82,17 @@ const App: React.FC = () => {
           </div>
         </div>
       </nav>
+
+      {!isSupabaseConfigured && (
+        <div className="relative z-20 max-w-5xl mx-auto px-4 pt-4">
+          <div className="bg-amber-600/10 border border-amber-600/20 text-amber-400 p-3 rounded-lg flex items-center gap-3 text-sm">
+             <Database size={18} className="flex-shrink-0" />
+             <p>
+               <strong>Supabase not connected.</strong> Data persistence is disabled. Check <code>SERVER_PLAN.md</code> to set up your database.
+             </p>
+          </div>
+        </div>
+      )}
 
       <main className="relative z-10 max-w-5xl mx-auto px-4 py-8 md:py-12">
         {renderView()}

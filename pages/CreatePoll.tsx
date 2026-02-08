@@ -15,17 +15,14 @@ export const CreatePoll: React.FC<CreatePollProps> = ({ setView }) => {
   const [tags, setTags] = useState<string[]>([]);
   const [tagInput, setTagInput] = useState('');
   const [isGenerating, setIsGenerating] = useState(false);
+  const [isSubmitting, setIsSubmitting] = useState(false);
 
-  const handleAddOption = () => {
-    setOptions([...options, '']);
-  };
-
+  const handleAddOption = () => setOptions([...options, '']);
   const handleOptionChange = (index: number, value: string) => {
     const newOpts = [...options];
     newOpts[index] = value;
     setOptions(newOpts);
   };
-
   const handleRemoveOption = (index: number) => {
     if (options.length <= 2) return;
     setOptions(options.filter((_, i) => i !== index));
@@ -34,189 +31,77 @@ export const CreatePoll: React.FC<CreatePollProps> = ({ setView }) => {
   const handleAddTag = (e?: React.KeyboardEvent) => {
     if (e && e.key !== 'Enter') return;
     e?.preventDefault();
-    
     const val = tagInput.trim();
     if (val && !tags.includes(val)) {
-        if (tags.length >= 5) {
-            toast("Max 5 tags allowed", "error");
-            return;
-        }
+        if (tags.length >= 5) { toast("Max 5 tags allowed", "error"); return; }
         setTags([...tags, val]);
         setTagInput('');
     }
   };
 
-  const removeTag = (tagToRemove: string) => {
-      setTags(tags.filter(t => t !== tagToRemove));
-  };
-
   const handleGenerateAI = async () => {
-    if (!title) {
-        toast("Please enter a topic first", "error");
-        return;
-    }
+    if (!title) { toast("Please enter a topic first", "error"); return; }
     setIsGenerating(true);
     const result = await generatePollOptions(title);
-    
-    if (result.options.length > 0) {
-      setOptions(result.options);
-    }
-    if (result.tags.length > 0) {
-        // Merge unique tags
-        const newTags = Array.from(new Set([...tags, ...result.tags])).slice(0, 5);
-        setTags(newTags);
-    }
-    
+    if (result.options.length > 0) setOptions(result.options);
+    if (result.tags.length > 0) setTags(Array.from(new Set([...tags, ...result.tags])).slice(0, 5));
     toast("AI Magic applied! ✨");
     setIsGenerating(false);
   };
 
-  const handleSubmit = (e: React.FormEvent) => {
+  const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     const cleanOptions = options.filter(o => o.trim() !== '');
-    
     if (!title || cleanOptions.length < 2) {
       toast("Please provide a title and at least 2 options.", "error");
       return;
     }
 
-    const newPoll: Poll = {
-      id: crypto.randomUUID(),
-      title,
-      description,
-      upvotes: 0,
-      createdAt: Date.now(),
-      tags,
-      status: 'pending', // Default for public creation
-      options: cleanOptions.map(text => ({
-        id: crypto.randomUUID(),
-        text,
-        votes: 0
-      }))
-    };
+    setIsSubmitting(true);
+    const success = await savePoll({ title, description, tags }, cleanOptions);
+    setIsSubmitting(false);
 
-    savePoll(newPoll);
-    toast("Poll submitted for moderation! 🚀", "success");
-    setView('HOME');
+    if (success) {
+      toast("Poll submitted for moderation! 🚀", "success");
+      setView('HOME');
+    } else {
+      toast("Error saving poll. Try again.", "error");
+    }
   };
 
   return (
     <div className="max-w-xl mx-auto animate-fade-in pb-20">
-      <button 
-        onClick={() => setView('HOME')}
-        className="flex items-center text-slate-400 hover:text-white mb-6 transition-colors"
-      >
-        <ArrowLeft size={20} className="mr-2" />
-        Cancel
+      <button onClick={() => setView('HOME')} className="flex items-center text-slate-400 hover:text-white mb-6 transition-colors">
+        <ArrowLeft size={20} className="mr-2" /> Cancel
       </button>
 
       <div className="bg-slate-800/80 border border-slate-700 rounded-2xl p-6 md:p-8 shadow-xl">
         <h2 className="text-2xl font-bold text-white mb-2">Create New Poll</h2>
-        <p className="text-slate-400 text-sm mb-6">Your poll will be reviewed by an admin before going live.</p>
-        
         <form onSubmit={handleSubmit} className="space-y-6">
-          
-          {/* Title */}
           <div>
             <label className="block text-sm font-medium text-slate-400 mb-1">Topic / Question</label>
             <div className="flex gap-2">
-              <input 
-                type="text"
-                value={title}
-                onChange={(e) => setTitle(e.target.value)}
-                placeholder="e.g., Best Pizza Toppings"
-                className="flex-grow bg-slate-900 border border-slate-700 rounded-lg px-4 py-2 text-white focus:ring-2 focus:ring-indigo-500 focus:border-transparent outline-none"
-              />
-              <Button 
-                type="button" 
-                variant="secondary"
-                onClick={handleGenerateAI}
-                disabled={!title || isGenerating}
-                isLoading={isGenerating}
-                title="Generate options & tags with AI"
-              >
-                <Sparkles size={18} />
-              </Button>
+              <input type="text" value={title} onChange={(e) => setTitle(e.target.value)} placeholder="e.g., Best Pizza Toppings" className="flex-grow bg-slate-900 border border-slate-700 rounded-lg px-4 py-2 text-white focus:ring-2 focus:ring-indigo-500 outline-none" />
+              <Button type="button" variant="secondary" onClick={handleGenerateAI} disabled={!title || isGenerating} isLoading={isGenerating}><Sparkles size={18} /></Button>
             </div>
-            <p className="text-xs text-slate-500 mt-1">
-              Tip: Enter a topic and click the sparkle button to auto-generate options using Gemini.
-            </p>
           </div>
-
-          {/* Description */}
           <div>
-            <label className="block text-sm font-medium text-slate-400 mb-1">Description (Optional)</label>
-            <textarea 
-              value={description}
-              onChange={(e) => setDescription(e.target.value)}
-              placeholder="Give some context..."
-              rows={3}
-              className="w-full bg-slate-900 border border-slate-700 rounded-lg px-4 py-2 text-white focus:ring-2 focus:ring-indigo-500 focus:border-transparent outline-none resize-none"
-            />
+            <label className="block text-sm font-medium text-slate-400 mb-1">Description</label>
+            <textarea value={description} onChange={(e) => setDescription(e.target.value)} rows={3} className="w-full bg-slate-900 border border-slate-700 rounded-lg px-4 py-2 text-white outline-none resize-none" />
           </div>
-
-          {/* Tags */}
-          <div>
-             <label className="block text-sm font-medium text-slate-400 mb-1">Tags (Max 5)</label>
-             <div className="flex flex-wrap gap-2 mb-2 p-2 bg-slate-900/50 rounded-lg border border-slate-700/50 min-h-[46px]">
-                {tags.map(tag => (
-                    <span key={tag} className="flex items-center gap-1 bg-indigo-900/50 text-indigo-200 px-2 py-1 rounded text-sm border border-indigo-500/30">
-                        #{tag}
-                        <button type="button" onClick={() => removeTag(tag)} className="hover:text-white"><X size={14}/></button>
-                    </span>
-                ))}
-                <input 
-                    type="text"
-                    value={tagInput}
-                    onChange={(e) => setTagInput(e.target.value)}
-                    onKeyDown={handleAddTag}
-                    onBlur={() => handleAddTag()}
-                    placeholder={tags.length === 0 ? "Type tag & enter..." : ""}
-                    className="bg-transparent outline-none text-white text-sm min-w-[100px] flex-grow"
-                    maxLength={15}
-                />
-             </div>
-          </div>
-
-          {/* Options */}
           <div>
             <label className="block text-sm font-medium text-slate-400 mb-2">Options</label>
             <div className="space-y-3">
               {options.map((opt, idx) => (
                 <div key={idx} className="flex gap-2">
-                  <input 
-                    type="text"
-                    value={opt}
-                    onChange={(e) => handleOptionChange(idx, e.target.value)}
-                    placeholder={`Option ${idx + 1}`}
-                    className="flex-grow bg-slate-900 border border-slate-700 rounded-lg px-4 py-2 text-white focus:ring-2 focus:ring-indigo-500 focus:border-transparent outline-none"
-                  />
-                  {options.length > 2 && (
-                    <button 
-                      type="button"
-                      onClick={() => handleRemoveOption(idx)}
-                      className="text-slate-500 hover:text-red-400 transition-colors p-2"
-                    >
-                      <Trash2 size={18} />
-                    </button>
-                  )}
+                  <input type="text" value={opt} onChange={(e) => handleOptionChange(idx, e.target.value)} placeholder={`Option ${idx + 1}`} className="flex-grow bg-slate-900 border border-slate-700 rounded-lg px-4 py-2 text-white" />
+                  {options.length > 2 && <button type="button" onClick={() => handleRemoveOption(idx)} className="text-slate-500 hover:text-red-400 p-2"><Trash2 size={18} /></button>}
                 </div>
               ))}
             </div>
-            <button 
-              type="button"
-              onClick={handleAddOption}
-              className="mt-3 flex items-center text-sm text-indigo-400 hover:text-indigo-300 transition-colors"
-            >
-              <Plus size={16} className="mr-1" /> Add Option
-            </button>
+            <button type="button" onClick={handleAddOption} className="mt-3 text-sm text-indigo-400 flex items-center"><Plus size={16} /> Add Option</button>
           </div>
-
-          <div className="pt-4">
-            <Button type="submit" className="w-full py-3 text-lg">
-              Submit for Review
-            </Button>
-          </div>
+          <Button type="submit" className="w-full py-3" isLoading={isSubmitting}>Submit for Review</Button>
         </form>
       </div>
     </div>

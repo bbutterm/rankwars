@@ -1,18 +1,21 @@
-import { Poll } from '../types';
+import { Poll, PollOption } from '../types';
+import { supabase, isSupabaseConfigured } from './supabase';
 
-const STORAGE_KEY = 'rankwars_data_v1';
-const VOTES_KEY = 'rankwars_user_votes_v1'; // Tracks which polls user interacted with
+const VOTES_KEY = 'rankwars_user_votes_v1';
 
-// Helper to track user actions locally
 interface UserVotes {
-  upvotedPolls: string[]; // IDs of polls upvoted on leaderboard
-  votedInPolls: string[]; // IDs of polls voted inside (options)
+  upvotedPolls: string[];
+  votedInPolls: string[];
 }
 
 const getUserVotes = (): UserVotes => {
   const data = localStorage.getItem(VOTES_KEY);
   if (!data) return { upvotedPolls: [], votedInPolls: [] };
-  return JSON.parse(data);
+  try {
+    return JSON.parse(data);
+  } catch {
+    return { upvotedPolls: [], votedInPolls: [] };
+  }
 };
 
 const saveUserVotes = (votes: UserVotes) => {
@@ -27,141 +30,172 @@ export const hasUserVotedInPoll = (pollId: string): boolean => {
   return getUserVotes().votedInPolls.includes(pollId);
 };
 
-const INITIAL_DATA: Poll[] = [
-  {
-    id: '1',
-    title: 'Pepsi vs. Coke',
-    description: 'The eternal battle of the colas. Which one really tastes better?',
-    upvotes: 142,
-    createdAt: Date.now(),
-    themeColor: 'blue',
-    tags: ['Food', 'Drinks', 'Culture'],
-    status: 'approved',
-    options: [
-      { id: 'opt1', text: 'Coca-Cola', votes: 350 },
-      { id: 'opt2', text: 'Pepsi', votes: 290 },
-      { id: 'opt3', text: 'Dr. Pepper (The dark horse)', votes: 120 }
-    ]
-  },
-  {
-    id: '2',
-    title: 'Cats vs. Dogs',
-    description: 'Which furry friend makes the ultimate companion?',
-    upvotes: 89,
-    createdAt: Date.now() - 100000,
-    themeColor: 'orange',
-    tags: ['Animals', 'Life', 'Fun'],
-    status: 'approved',
-    options: [
-      { id: 'opt_c', text: 'Cats 🐱', votes: 200 },
-      { id: 'opt_d', text: 'Dogs 🐶', votes: 215 }
-    ]
-  },
-  {
-    id: '3',
-    title: 'Best Programming Language',
-    description: 'For building scalable web applications in 2025.',
-    upvotes: 210,
-    createdAt: Date.now() - 500000,
-    themeColor: 'indigo',
-    tags: ['Tech', 'Dev', 'Work'],
-    status: 'approved',
-    options: [
-      { id: 'ts', text: 'TypeScript', votes: 500 },
-      { id: 'rs', text: 'Rust', votes: 320 },
-      { id: 'go', text: 'Go', votes: 150 },
-      { id: 'py', text: 'Python', votes: 400 }
-    ]
-  }
-];
+// API CALLS
+export const getPolls = async (): Promise<Poll[]> => {
+  if (!supabase) return [];
 
-export const getPolls = (): Poll[] => {
-  const data = localStorage.getItem(STORAGE_KEY);
-  if (!data) {
-    localStorage.setItem(STORAGE_KEY, JSON.stringify(INITIAL_DATA));
-    return INITIAL_DATA;
+  const { data, error } = await supabase
+    .from('polls')
+    .select(`
+      *,
+      options:poll_options(*)
+    `)
+    .order('created_at', { ascending: false });
+
+  if (error) {
+    console.error("Error fetching polls:", error);
+    return [];
   }
-  return JSON.parse(data);
+
+  return data as Poll[];
 };
 
-export const savePoll = (poll: Poll): void => {
-  const polls = getPolls();
-  // Ensure status is pending if not specified (though strict types now require it)
-  if (!poll.status) poll.status = 'pending';
+export const savePoll = async (poll: Partial<Poll>, options: string[]): Promise<boolean> => {
+  if (!supabase) {
+    console.error("Supabase client not initialized");
+    return false;
+  }
+
+  try {
+    // GENERATE ID CLIENT-SIDE
+    // This fixes the 401 Error because we don't need to .select() the pending poll
+    // (which might be blocked by RLS policies) to get its ID.
+    const pollId = self.crypto.randomUUID();
+
+    // 1. Insert Poll with explicit ID
+    const { error: pollError } = await supabase
+      .from('polls')
+      .insert([{
+        id: pollId,
+        title: poll.title,
+        description: poll.description,
+        tags: poll.tags || [],
+        status: 'pending',
+        upvotes: 0
+      }]);
+
+    if (pollError) {
+      console.error("Error inserting poll:", JSON.stringify(pollError));
+      return false;
+    }
+
+    // 2. Insert Options using the known pollId
+    const optionsToInsert = options.map(text => ({
+      poll_id: pollId,
+      text: text,
+      votes: 0
+    }));
+
+    const { error: optError } = await supabase
+      .from('poll_options')
+      .insert(optionsToInsert);
+
+    if (optError) {
+      console.error("Error inserting options:", JSON.stringify(optError));
+      // Try to cleanup
+      await supabase.from('polls').delete().eq('id', pollId);
+      return false;
+    }
+
+    return true;
+  } catch (err) {
+    console.error("Critical error in savePoll:", err);
+    return false;
+  }
+};
+
+export const seedTestData = async (): Promise<boolean> => {
+  if (!supabase) return false;
   
-  polls.push(poll);
-  localStorage.setItem(STORAGE_KEY, JSON.stringify(polls));
-};
+  const testPolls = [
+    {
+      title: "Coke vs Pepsi",
+      description: "The ultimate soda showdown. Which one reigns supreme?",
+      tags: ["Drinks", "Classic"],
+      options: ["Coca-Cola", "Pepsi", "Dr. Pepper", "I hate soda"]
+    },
+    {
+      title: "Best Frontend Framework 2025",
+      description: "Which technology are you betting on this year?",
+      tags: ["Tech", "Dev"],
+      options: ["React", "Vue", "Svelte", "Angular"]
+    },
+    {
+      title: "Cats or Dogs?",
+      description: "Settle the age-old debate about our furry friends.",
+      tags: ["Animals", "Life"],
+      options: ["Team Cat 🐱", "Team Dog 🐶", "Both!", "Neither"]
+    }
+  ];
 
-export const updatePoll = (updatedPoll: Poll): void => {
-  const polls = getPolls();
-  const index = polls.findIndex(p => p.id === updatedPoll.id);
-  if (index !== -1) {
-    polls[index] = updatedPoll;
-    localStorage.setItem(STORAGE_KEY, JSON.stringify(polls));
-  }
-};
+  for (const p of testPolls) {
+    // Using the same client-side ID strategy for seeding
+    const pollId = self.crypto.randomUUID();
 
-export const deletePoll = (id: string): void => {
-  const polls = getPolls();
-  const newPolls = polls.filter(p => p.id !== id);
-  localStorage.setItem(STORAGE_KEY, JSON.stringify(newPolls));
-};
+    const { error: pollError } = await supabase
+      .from('polls')
+      .insert([{
+        id: pollId,
+        title: p.title,
+        description: p.description,
+        tags: p.tags,
+        status: 'approved',
+        upvotes: Math.floor(Math.random() * 50)
+      }]);
 
-export const approvePoll = (id: string): void => {
-  const polls = getPolls();
-  const index = polls.findIndex(p => p.id === id);
-  if (index !== -1) {
-    polls[index].status = 'approved';
-    localStorage.setItem(STORAGE_KEY, JSON.stringify(polls));
-  }
-};
-
-// Simulation of voting for a poll (ranking it up)
-export const upvotePollInStorage = (id: string): Poll | undefined => {
-  // Check if user already upvoted
-  const userVotes = getUserVotes();
-  if (userVotes.upvotedPolls.includes(id)) {
-    return undefined; // Prevent duplicate vote
-  }
-
-  const polls = getPolls();
-  const index = polls.findIndex(p => p.id === id);
-  if (index !== -1) {
-    polls[index].upvotes += 1;
-    localStorage.setItem(STORAGE_KEY, JSON.stringify(polls));
-    
-    // Save user action
-    userVotes.upvotedPolls.push(id);
-    saveUserVotes(userVotes);
-    
-    return polls[index];
-  }
-  return undefined;
-};
-
-// Simulation of voting IN a poll (choosing an option)
-export const voteInPollStorage = (pollId: string, optionId: string): Poll | undefined => {
-  // Check if user already voted in this poll
-  const userVotes = getUserVotes();
-  if (userVotes.votedInPolls.includes(pollId)) {
-    return undefined;
-  }
-
-  const polls = getPolls();
-  const pIndex = polls.findIndex(p => p.id === pollId);
-  if (pIndex !== -1) {
-    const oIndex = polls[pIndex].options.findIndex(o => o.id === optionId);
-    if (oIndex !== -1) {
-      polls[pIndex].options[oIndex].votes += 1;
-      localStorage.setItem(STORAGE_KEY, JSON.stringify(polls));
-
-      // Save user action
-      userVotes.votedInPolls.push(pollId);
-      saveUserVotes(userVotes);
-
-      return polls[pIndex];
+    if (!pollError) {
+      await supabase.from('poll_options').insert(
+        p.options.map(text => ({
+          poll_id: pollId,
+          text,
+          votes: Math.floor(Math.random() * 100)
+        }))
+      );
     }
   }
-  return undefined;
+  return true;
+};
+
+export const approvePoll = async (id: string): Promise<void> => {
+  if (!supabase) return;
+  await supabase
+    .from('polls')
+    .update({ status: 'approved' })
+    .eq('id', id);
+};
+
+export const deletePoll = async (id: string): Promise<void> => {
+  if (!supabase) return;
+  await supabase
+    .from('polls')
+    .delete()
+    .eq('id', id);
+};
+
+export const upvotePollInStorage = async (id: string): Promise<boolean> => {
+  if (!supabase || hasUserUpvoted(id)) return false;
+
+  const { error } = await supabase.rpc('increment_poll_upvotes', { poll_id: id });
+
+  if (!error) {
+    const votes = getUserVotes();
+    votes.upvotedPolls.push(id);
+    saveUserVotes(votes);
+    return true;
+  }
+  return false;
+};
+
+export const voteInPollStorage = async (pollId: string, optionId: string): Promise<boolean> => {
+  if (!supabase || hasUserVotedInPoll(pollId)) return false;
+
+  const { error } = await supabase.rpc('increment_option_votes', { option_id: optionId });
+
+  if (!error) {
+    const votes = getUserVotes();
+    votes.votedInPolls.push(pollId);
+    saveUserVotes(votes);
+    return true;
+  }
+  return false;
 };

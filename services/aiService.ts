@@ -1,6 +1,8 @@
+
 import { GoogleGenAI, Type } from "@google/genai";
 
-const ai = new GoogleGenAI({ apiKey: process.env.API_KEY || '' });
+// Always initialize GoogleGenAI with the named parameter and process.env.API_KEY directly.
+const ai = new GoogleGenAI({ apiKey: process.env.API_KEY });
 
 export interface AIResponse {
   options: string[];
@@ -8,12 +10,8 @@ export interface AIResponse {
 }
 
 export const generatePollOptions = async (topic: string): Promise<AIResponse> => {
-  if (!process.env.API_KEY) {
-    console.warn("No API Key provided for Gemini.");
-    return { options: ["Manual Option 1", "Manual Option 2"], tags: [] };
-  }
-
   try {
+    // Always use ai.models.generateContent and specify the model name.
     const response = await ai.models.generateContent({
       model: "gemini-3-flash-preview",
       contents: `Generate 4 witty, short, and distinct poll options for the topic: "${topic}". Also provide 3 short, one-word tags relevant to the topic.`,
@@ -38,6 +36,7 @@ export const generatePollOptions = async (topic: string): Promise<AIResponse> =>
       },
     });
 
+    // Access the text output via the .text property as per guidelines.
     const text = response.text;
     if (!text) return { options: [], tags: [] };
     
@@ -48,6 +47,7 @@ export const generatePollOptions = async (topic: string): Promise<AIResponse> =>
     };
   } catch (error) {
     console.error("Error generating options:", error);
+    // Return safe defaults in case of failure.
     return { options: ["Manual Option 1", "Manual Option 2"], tags: [] };
   }
 };

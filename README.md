@@ -1,51 +1,43 @@
 # ⚔️ RankWars (MVP)
 
-A visually stunning voting platform where users create polls, rank them on a global leaderboard, and vote within them. 
+A visually stunning voting platform where users create polls, rank them on a global leaderboard, and vote within them.
 
-**Stack:** React 19, Tailwind CSS, Lucide Icons, Google Gemini AI.
-
-## 🌟 Features
-
-*   **Create Polls:** AI-assisted generation of options and tags.
-*   **Vote & Rank:** Interactive voting UI with confetti effects.
-*   **Moderation:** Admin dashboard to Approve/Decline user-submitted polls.
-*   **Search & Filter:** Find polls by tags or text.
-*   **Responsive:** Mobile-first design.
-
-## 🛠 Project Structure
-
-See [PROJECT_STRUCTURE.md](./PROJECT_STRUCTURE.md) for a detailed file tree.
+**Stack:** React 19, Vite, Tailwind CSS, Lucide Icons, Google Gemini AI, Supabase.
 
 ## 🚀 How to Run Locally
 
-1.  **Clone the repo**
-2.  **Serve the files:**
-    Since this project uses ES Modules via CDN, you strictly need a local server (opening `index.html` directly won't work due to CORS policies on modules).
-    
-    If you have Python:
+1.  **Install Dependencies:**
     ```bash
-    python3 -m http.server
+    npm install
     ```
-    Or using Node `serve`:
+2.  **Environment Setup:**
+    Create a `.env` file in the root directory and add your API Key:
+    ```env
+    API_KEY=your_google_gemini_api_key
+    ```
+3.  **Start Development Server:**
     ```bash
-    npx serve .
+    npm run dev
     ```
-3.  **Open in Browser:** Go to `http://localhost:8000` (or whatever port your server uses).
+4.  **Open in Browser:**
+    Go to `http://localhost:5173`
 
 ## ☁️ Deploy to Vercel
-
-This project is ready for static deployment.
 
 1.  Push this code to **GitHub**.
 2.  Go to **Vercel** -> **Add New Project**.
 3.  Select your repository.
 4.  **Settings:**
-    *   **Framework Preset:** Select `Other` (because we are using native ES modules without a bundler build step).
-    *   **Build Command:** Leave empty.
-    *   **Output Directory:** Leave empty (or use `.`/`root`).
+    *   **Framework Preset:** Vite (should be detected automatically).
+    *   **Build Command:** `npm run build`
+    *   **Output Directory:** `dist`
 5.  **Environment Variables:**
-    *   Add `API_KEY` : Your Google Gemini API Key. (Note: Since this is a client-side app, you will need to manually paste the key into `services/aiService.ts` for the MVP, or set up a build replacement. For Vercel static, it's best to hardcode it for a demo or move to a backend proxy).
+    *   Add `API_KEY` in the Vercel Project Settings. This is required for the AI polling features to work.
+
+## 🛠 Project Structure
+
+See [PROJECT_STRUCTURE.md](./PROJECT_STRUCTURE.md) for a detailed file tree.
 
 ## 🔮 Future Roadmap
 
-See [SERVER_PLAN.md](./SERVER_PLAN.md) for our migration strategy to Supabase.
+See [SERVER_PLAN.md](./SERVER_PLAN.md) for database migration strategy.

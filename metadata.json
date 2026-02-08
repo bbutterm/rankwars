@@ -1,5 +1,5 @@
 {
   "name": "RankWars MVP",
-  "description": "A visually stunning voting platform where users rank polls and vote within them. Features an admin panel with AI-assisted poll creation.",
+  "description": "A visually stunning voting platform where users rank polls and vote within them. Features an admin panel.",
   "requestFramePermissions": []
 }

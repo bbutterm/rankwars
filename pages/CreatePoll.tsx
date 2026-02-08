@@ -1,9 +1,8 @@
 import React, { useState } from 'react';
-import { NavigationProps, Poll } from '../types';
+import { NavigationProps } from '../types';
 import { savePoll } from '../services/storage';
-import { generatePollOptions } from '../services/aiService';
 import { Button } from '../components/Button';
-import { ArrowLeft, Plus, Sparkles, Trash2, X } from 'lucide-react';
+import { ArrowLeft, Plus, Trash2 } from 'lucide-react';
 import { toast } from '../components/Toast';
 
 interface CreatePollProps extends NavigationProps {}
@@ -14,7 +13,6 @@ export const CreatePoll: React.FC<CreatePollProps> = ({ setView }) => {
   const [options, setOptions] = useState<string[]>(['', '']);
   const [tags, setTags] = useState<string[]>([]);
   const [tagInput, setTagInput] = useState('');
-  const [isGenerating, setIsGenerating] = useState(false);
   const [isSubmitting, setIsSubmitting] = useState(false);
 
   const handleAddOption = () => setOptions([...options, '']);
@@ -37,16 +35,6 @@ export const CreatePoll: React.FC<CreatePollProps> = ({ setView }) => {
         setTags([...tags, val]);
         setTagInput('');
     }
-  };
-
-  const handleGenerateAI = async () => {
-    if (!title) { toast("Please enter a topic first", "error"); return; }
-    setIsGenerating(true);
-    const result = await generatePollOptions(title);
-    if (result.options.length > 0) setOptions(result.options);
-    if (result.tags.length > 0) setTags(Array.from(new Set([...tags, ...result.tags])).slice(0, 5));
-    toast("AI Magic applied! ✨");
-    setIsGenerating(false);
   };
 
   const handleSubmit = async (e: React.FormEvent) => {
@@ -82,7 +70,6 @@ export const CreatePoll: React.FC<CreatePollProps> = ({ setView }) => {
             <label className="block text-sm font-medium text-slate-400 mb-1">Topic / Question</label>
             <div className="flex gap-2">
               <input type="text" value={title} onChange={(e) => setTitle(e.target.value)} placeholder="e.g., Best Pizza Toppings" className="flex-grow bg-slate-900 border border-slate-700 rounded-lg px-4 py-2 text-white focus:ring-2 focus:ring-indigo-500 outline-none" />
-              <Button type="button" variant="secondary" onClick={handleGenerateAI} disabled={!title || isGenerating} isLoading={isGenerating}><Sparkles size={18} /></Button>
             </div>
           </div>
           <div>

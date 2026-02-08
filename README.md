@@ -2,7 +2,7 @@
 
 A visually stunning voting platform where users create polls, rank them on a global leaderboard, and vote within them.
 
-**Stack:** React 19, Vite, Tailwind CSS, Lucide Icons, Google Gemini AI, Supabase.
+**Stack:** React 18, Vite, Tailwind CSS, Lucide Icons, Supabase.
 
 ## 🚀 How to Run Locally
 
@@ -10,16 +10,11 @@ A visually stunning voting platform where users create polls, rank them on a glo
     ```bash
     npm install
     ```
-2.  **Environment Setup:**
-    Create a `.env` file in the root directory and add your API Key:
-    ```env
-    API_KEY=your_google_gemini_api_key
-    ```
-3.  **Start Development Server:**
+2.  **Start Development Server:**
     ```bash
     npm run dev
     ```
-4.  **Open in Browser:**
+3.  **Open in Browser:**
     Go to `http://localhost:5173`
 
 ## ☁️ Deploy to Vercel
@@ -31,8 +26,6 @@ A visually stunning voting platform where users create polls, rank them on a glo
     *   **Framework Preset:** Vite (should be detected automatically).
     *   **Build Command:** `npm run build`
     *   **Output Directory:** `dist`
-5.  **Environment Variables:**
-    *   Add `API_KEY` in the Vercel Project Settings. This is required for the AI polling features to work.
 
 ## 🛠 Project Structure
 

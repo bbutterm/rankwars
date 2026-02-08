@@ -98,5 +98,4 @@ In your Vercel or local environment, set:
 ```env
 SUPABASE_URL=your_project_url
 SUPABASE_ANON_KEY=your_anon_key
-API_KEY=your_gemini_api_key
 ```

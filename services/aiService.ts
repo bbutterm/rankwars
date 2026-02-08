@@ -1,8 +1,7 @@
 
-import { GoogleGenAI, Type } from "@google/genai";
-
-// Always initialize GoogleGenAI with the named parameter and process.env.API_KEY directly.
-const ai = new GoogleGenAI({ apiKey: process.env.API_KEY });
+// AI features have been disabled.
+// This file is kept as a placeholder to avoid breaking imports if any were missed,
+// but the functionality is removed.
 
 export interface AIResponse {
   options: string[];
@@ -10,44 +9,6 @@ export interface AIResponse {
 }
 
 export const generatePollOptions = async (topic: string): Promise<AIResponse> => {
-  try {
-    // Always use ai.models.generateContent and specify the model name.
-    const response = await ai.models.generateContent({
-      model: "gemini-3-flash-preview",
-      contents: `Generate 4 witty, short, and distinct poll options for the topic: "${topic}". Also provide 3 short, one-word tags relevant to the topic.`,
-      config: {
-        responseMimeType: "application/json",
-        responseSchema: {
-          type: Type.OBJECT,
-          properties: {
-            options: {
-              type: Type.ARRAY,
-              items: { type: Type.STRING },
-              description: "A list of 4 poll options",
-            },
-            tags: {
-              type: Type.ARRAY,
-              items: { type: Type.STRING },
-              description: "A list of 3 relevant tags (e.g. 'Tech', 'Food')",
-            },
-          },
-          required: ["options", "tags"],
-        },
-      },
-    });
-
-    // Access the text output via the .text property as per guidelines.
-    const text = response.text;
-    if (!text) return { options: [], tags: [] };
-    
-    const data = JSON.parse(text);
-    return {
-      options: data.options || [],
-      tags: data.tags || []
-    };
-  } catch (error) {
-    console.error("Error generating options:", error);
-    // Return safe defaults in case of failure.
-    return { options: ["Manual Option 1", "Manual Option 2"], tags: [] };
-  }
+  console.warn("AI generation is disabled.");
+  return { options: [], tags: [] };
 };
